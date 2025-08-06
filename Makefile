@@ -23,6 +23,18 @@ test-coverage:
 	go test ./... -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 
+# Enforce minimum total coverage of 85%
+coverage-check:
+	go test ./... -coverprofile=coverage.out
+	go tool cover -func=coverage.out | awk '/total:/ {print $3}' | sed 's/%//' | awk '{if ($1 < 85) { printf("Coverage %.2f%% is below required 85%%\n", $1); exit 1 } else { printf("Coverage %.2f%% meets requirement (>=85%%)\n", $1) }}'
+
+# Run tests, enforce >=85% coverage, and generate HTML report
+test-coverage-enforced:
+	go test ./... -coverprofile=coverage.out
+	go tool cover -func=coverage.out | awk '/total:/ {print $3}' | sed 's/%//' | awk '{if ($1 < 85) exit 1}'
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage OK (>=85%). Report at coverage.html"
+
 # Build Docker image
 docker-build:
 	docker build -t $(IMAGE_NAME):$(VERSION) .
@@ -150,6 +162,8 @@ help:
 	@echo "  build                 - Build Go binary"
 	@echo "  test                  - Run tests"
 	@echo "  test-coverage         - Run tests with coverage"
+	@echo "  coverage-check        - Run coverage and enforce >=85%"
+	@echo "  test-coverage-enforced- Run tests with coverage and enforce >=85%"
 	@echo "  docker-build          - Build Docker image"
 	@echo "  docker-buildx         - Build multi-arch Docker image"
 	@echo "  docker-push           - Push Docker image to registry"
