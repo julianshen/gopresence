@@ -16,13 +16,13 @@ spec:
     targetPort: {{ .Values.k8sService.ports.nats.targetPort }}
     protocol: {{ .Values.k8sService.ports.nats.protocol }}
     name: nats
-  - port: {{ .Values.k8sService.ports.nats-leaf.port }}
-    targetPort: {{ .Values.k8sService.ports.nats-leaf.targetPort }}
-    protocol: {{ .Values.k8sService.ports.nats-leaf.protocol }}
+  - port: {{ (index .Values.k8sService.ports "nats-leaf").port }}
+    targetPort: {{ (index .Values.k8sService.ports "nats-leaf").targetPort }}
+    protocol: {{ (index .Values.k8sService.ports "nats-leaf").protocol }}
     name: nats-leaf
-  - port: {{ .Values.k8sService.ports.nats-cluster.port }}
-    targetPort: {{ .Values.k8sService.ports.nats-cluster.targetPort }}
-    protocol: {{ .Values.k8sService.ports.nats-cluster.protocol }}
+  - port: {{ (index .Values.k8sService.ports "nats-cluster").port }}
+    targetPort: {{ (index .Values.k8sService.ports "nats-cluster").targetPort }}
+    protocol: {{ (index .Values.k8sService.ports "nats-cluster").protocol }}
     name: nats-cluster
   {{- end }}
   selector:

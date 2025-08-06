@@ -124,9 +124,10 @@ curl -H "Authorization: Bearer <jwt-token>" http://localhost:8080/api/v2/presenc
 
 ### Endpoints
 
-#### Health Check
+#### Health Checks
 ```http
-GET /health
+GET /health/liveness     # Process is up
+GET /health/readiness    # Dependencies (e.g., NATS KV) are ready
 ```
 
 #### Get Presence

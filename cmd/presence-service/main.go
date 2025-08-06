@@ -25,6 +25,11 @@ func main(){
 
 	// Router
 	r := mux.NewRouter()
+	// Health routes
+	hh := handlers.NewHealthHandler(svc)
+	r.HandleFunc("/health/liveness", hh.Liveness).Methods(http.MethodGet)
+	r.HandleFunc("/health/readiness", hh.Readiness).Methods(http.MethodGet)
+
 	// API routes
 	ph := handlers.NewPresenceHandler(svc)
 	r.HandleFunc("/api/v2/presence/{user_id}", ph.GetPresence).Methods(http.MethodGet, http.MethodOptions)

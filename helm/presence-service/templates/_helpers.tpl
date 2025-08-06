@@ -146,4 +146,17 @@ Generate environment variables for the service
   value: {{ .Values.logging.level | quote }}
 - name: LOG_FORMAT
   value: {{ .Values.logging.format | quote }}
+# CORS
+- name: CORS_ENABLED
+  value: {{ default true .Values.env.CORS_ENABLED | toString | quote }}
+- name: CORS_ALLOWED_ORIGINS
+  value: {{ default "*" .Values.env.CORS_ALLOWED_ORIGINS | quote }}
+- name: CORS_ALLOWED_METHODS
+  value: {{ default "GET,POST,PUT,DELETE,OPTIONS" .Values.env.CORS_ALLOWED_METHODS | quote }}
+- name: CORS_ALLOWED_HEADERS
+  value: {{ default "Authorization,Content-Type" .Values.env.CORS_ALLOWED_HEADERS | quote }}
+- name: CORS_ALLOW_CREDENTIALS
+  value: {{ default false .Values.env.CORS_ALLOW_CREDENTIALS | toString | quote }}
+- name: CORS_MAX_AGE
+  value: {{ default 600 .Values.env.CORS_MAX_AGE | toString | quote }}
 {{- end }}

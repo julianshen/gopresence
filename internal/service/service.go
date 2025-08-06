@@ -13,9 +13,16 @@ import (
 
 // PresenceService implements the core business logic for presence management
 type PresenceService struct {
-	cache  cache.MemoryCache
-	store  nats.KVStore
+	cache cache.MemoryCache
+	store nats.KVStore
 	nodeID string
+}
+
+// Ready checks whether dependencies are available (e.g., KV store)
+func (s *PresenceService) Ready(ctx context.Context) error {
+	// Use a lightweight call to validate store connectivity
+	_, err := s.store.GetMultiple(ctx, []string{})
+	return err
 }
 
 // NewPresenceService creates a new presence service

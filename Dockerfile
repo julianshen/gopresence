@@ -42,7 +42,7 @@ EXPOSE 4222 7422 6222
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD ["/presence-service", "--health-check"] || exit 1
+  CMD ["/bin/sh", "-c", "wget -qO- http://127.0.0.1:8080/health/readiness >/dev/null 2>&1 || exit 1"]
 
 # Run the service
 ENTRYPOINT ["/presence-service"]

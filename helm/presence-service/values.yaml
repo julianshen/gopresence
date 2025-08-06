@@ -79,6 +79,15 @@ logging:
   level: "info"
   format: "json"
 
+# CORS configuration (passed as env)
+env:
+  CORS_ENABLED: true
+  CORS_ALLOWED_ORIGINS: "*"
+  CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  CORS_ALLOWED_HEADERS: "Authorization,Content-Type"
+  CORS_ALLOW_CREDENTIALS: false
+  CORS_MAX_AGE: 600
+
 # Kubernetes deployment configuration
 deployment:
   replicaCount: 1
@@ -112,19 +121,19 @@ deployment:
   # Liveness and readiness probes
   livenessProbe:
     httpGet:
-      path: /health
+      path: /health/liveness
       port: 8080
-    initialDelaySeconds: 10
-    periodSeconds: 30
-    timeoutSeconds: 5
+    initialDelaySeconds: 5
+    periodSeconds: 15
+    timeoutSeconds: 3
     failureThreshold: 3
   
   readinessProbe:
     httpGet:
-      path: /health
+      path: /health/readiness
       port: 8080
     initialDelaySeconds: 5
-    periodSeconds: 10
+    periodSeconds: 15
     timeoutSeconds: 3
     failureThreshold: 3
 
