@@ -9,7 +9,7 @@ import (
 
 func TestMemoryCache_Basic(t *testing.T) {
 	cache := NewMemoryCache(10, time.Minute)
-	
+
 	// Test cache is initially empty
 	if cache.Size() != 0 {
 		t.Errorf("Expected empty cache, got size %d", cache.Size())
@@ -25,7 +25,7 @@ func TestMemoryCache_Basic(t *testing.T) {
 func TestMemoryCache_SetAndGet(t *testing.T) {
 	cache := NewMemoryCache(10, time.Minute)
 	now := time.Now()
-	
+
 	presence := models.Presence{
 		UserID:    "user1",
 		Status:    models.StatusOnline,
@@ -37,7 +37,7 @@ func TestMemoryCache_SetAndGet(t *testing.T) {
 
 	// Set presence
 	cache.Set("user1", presence, time.Minute)
-	
+
 	// Verify size
 	if cache.Size() != 1 {
 		t.Errorf("Expected cache size 1, got %d", cache.Size())
@@ -48,7 +48,7 @@ func TestMemoryCache_SetAndGet(t *testing.T) {
 	if !found {
 		t.Error("Expected to find cached presence")
 	}
-	
+
 	if retrieved.UserID != presence.UserID {
 		t.Errorf("Expected UserID %s, got %s", presence.UserID, retrieved.UserID)
 	}
@@ -60,7 +60,7 @@ func TestMemoryCache_SetAndGet(t *testing.T) {
 func TestMemoryCache_TTLExpiration(t *testing.T) {
 	cache := NewMemoryCache(10, 50*time.Millisecond)
 	now := time.Now()
-	
+
 	presence := models.Presence{
 		UserID:    "user1",
 		Status:    models.StatusOnline,
@@ -71,7 +71,7 @@ func TestMemoryCache_TTLExpiration(t *testing.T) {
 
 	// Set with short TTL
 	cache.Set("user1", presence, 50*time.Millisecond)
-	
+
 	// Should be available immediately
 	_, found := cache.Get("user1")
 	if !found {
@@ -80,7 +80,7 @@ func TestMemoryCache_TTLExpiration(t *testing.T) {
 
 	// Wait for expiration
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Should be expired now
 	_, found = cache.Get("user1")
 	if found {
@@ -92,7 +92,7 @@ func TestMemoryCache_Eviction(t *testing.T) {
 	// Create a small cache to test eviction behavior
 	cache := NewMemoryCache(2, time.Minute) // Small cache for testing
 	now := time.Now()
-	
+
 	// Fill cache with multiple items to trigger eviction
 	// Ristretto uses TinyLFU admission policy, so behavior differs from simple LRU
 	for i := 1; i <= 10; i++ {
@@ -109,7 +109,7 @@ func TestMemoryCache_Eviction(t *testing.T) {
 	// Due to Ristretto's admission policy and cost-based eviction,
 	// we can't predict exactly which items will be evicted.
 	// Instead, test that the cache is managing its size appropriately
-	
+
 	// Count how many items are actually in cache
 	foundCount := 0
 	for i := 1; i <= 10; i++ {
@@ -117,7 +117,7 @@ func TestMemoryCache_Eviction(t *testing.T) {
 			foundCount++
 		}
 	}
-	
+
 	// The cache should have admitted some items but not all
 	// (exact behavior depends on Ristretto's admission policy)
 	if foundCount == 0 {
@@ -126,14 +126,14 @@ func TestMemoryCache_Eviction(t *testing.T) {
 	if foundCount == 10 {
 		t.Error("Expected cache to evict some items due to size constraints")
 	}
-	
+
 	t.Logf("Cache admitted %d out of 10 items", foundCount)
 }
 
 func TestMemoryCache_Delete(t *testing.T) {
 	cache := NewMemoryCache(10, time.Minute)
 	now := time.Now()
-	
+
 	presence := models.Presence{
 		UserID:    "user1",
 		Status:    models.StatusOnline,
@@ -143,7 +143,7 @@ func TestMemoryCache_Delete(t *testing.T) {
 	}
 
 	cache.Set("user1", presence, time.Minute)
-	
+
 	// Verify it's there
 	_, found := cache.Get("user1")
 	if !found {
@@ -152,13 +152,13 @@ func TestMemoryCache_Delete(t *testing.T) {
 
 	// Delete it
 	cache.Delete("user1")
-	
+
 	// Verify it's gone
 	_, found = cache.Get("user1")
 	if found {
 		t.Error("Expected presence to be deleted")
 	}
-	
+
 	if cache.Size() != 0 {
 		t.Errorf("Expected cache size 0 after deletion, got %d", cache.Size())
 	}
@@ -167,7 +167,7 @@ func TestMemoryCache_Delete(t *testing.T) {
 func TestMemoryCache_GetMultiple(t *testing.T) {
 	cache := NewMemoryCache(10, time.Minute)
 	now := time.Now()
-	
+
 	// Add multiple users
 	users := []string{"user1", "user2", "user3"}
 	for _, userID := range users {
@@ -183,11 +183,11 @@ func TestMemoryCache_GetMultiple(t *testing.T) {
 
 	// Get multiple
 	result := cache.GetMultiple([]string{"user1", "user2", "user4"}) // user4 doesn't exist
-	
+
 	if len(result) != 2 {
 		t.Errorf("Expected 2 results, got %d", len(result))
 	}
-	
+
 	if _, exists := result["user1"]; !exists {
 		t.Error("Expected user1 in results")
 	}
@@ -202,7 +202,7 @@ func TestMemoryCache_GetMultiple(t *testing.T) {
 func TestMemoryCache_Clear(t *testing.T) {
 	cache := NewMemoryCache(10, time.Minute)
 	now := time.Now()
-	
+
 	// Add some items
 	for i := 1; i <= 3; i++ {
 		presence := models.Presence{
@@ -221,7 +221,7 @@ func TestMemoryCache_Clear(t *testing.T) {
 
 	// Clear cache
 	cache.Clear()
-	
+
 	if cache.Size() != 0 {
 		t.Errorf("Expected cache size 0 after clear, got %d", cache.Size())
 	}
@@ -236,10 +236,10 @@ func TestMemoryCache_Clear(t *testing.T) {
 func TestMemoryCache_ConcurrentAccess(t *testing.T) {
 	cache := NewMemoryCache(100, time.Minute)
 	now := time.Now()
-	
+
 	// Test concurrent writes and reads
 	done := make(chan bool, 20)
-	
+
 	// 10 concurrent writers
 	for i := 0; i < 10; i++ {
 		go func(id int) {
@@ -254,7 +254,7 @@ func TestMemoryCache_ConcurrentAccess(t *testing.T) {
 			done <- true
 		}(i)
 	}
-	
+
 	// 10 concurrent readers
 	for i := 0; i < 10; i++ {
 		go func(id int) {
@@ -262,12 +262,12 @@ func TestMemoryCache_ConcurrentAccess(t *testing.T) {
 			done <- true
 		}(i)
 	}
-	
+
 	// Wait for all goroutines to complete
 	for i := 0; i < 20; i++ {
 		<-done
 	}
-	
+
 	// Cache should have up to 10 items (depending on timing)
 	size := cache.Size()
 	if size < 0 || size > 10 {

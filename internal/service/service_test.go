@@ -13,7 +13,7 @@ import (
 func TestPresenceService_Integration(t *testing.T) {
 	// Create test components
 	memCache := cache.NewMemoryCache(100, time.Minute)
-	
+
 	store, err := nats.NewKVStore(nats.KVConfig{
 		Embedded:   true,
 		BucketName: "test-presence-service",
@@ -61,7 +61,7 @@ func TestPresenceService_Integration(t *testing.T) {
 func TestPresenceService_CacheIntegration(t *testing.T) {
 	// Create test components
 	memCache := cache.NewMemoryCache(100, time.Minute)
-	
+
 	store, err := nats.NewKVStore(nats.KVConfig{
 		Embedded:   true,
 		BucketName: "test-presence-cache",
@@ -111,7 +111,7 @@ func TestPresenceService_CacheIntegration(t *testing.T) {
 func TestPresenceService_MultiplePresences(t *testing.T) {
 	// Create test components
 	memCache := cache.NewMemoryCache(100, time.Minute)
-	
+
 	store, err := nats.NewKVStore(nats.KVConfig{
 		Embedded:   true,
 		BucketName: "test-presence-multi",
@@ -171,7 +171,7 @@ func TestPresenceService_MultiplePresences(t *testing.T) {
 func TestPresenceService_NotFound(t *testing.T) {
 	// Create test components
 	memCache := cache.NewMemoryCache(100, time.Minute)
-	
+
 	store, err := nats.NewKVStore(nats.KVConfig{
 		Embedded:   true,
 		BucketName: "test-presence-notfound",

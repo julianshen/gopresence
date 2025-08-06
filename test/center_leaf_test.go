@@ -72,7 +72,7 @@ func TestCenterLeafNodeSetup(t *testing.T) {
 func TestCenterNodeConfiguration(t *testing.T) {
 	// Test that center node properly configures JetStream
 	centerBucket := fmt.Sprintf("center-config-test-%d", time.Now().UnixNano())
-	
+
 	centerStore, err := nats.NewKVStore(nats.KVConfig{
 		Embedded:   true,
 		BucketName: centerBucket,
@@ -118,27 +118,27 @@ func TestCenterNodeConfiguration(t *testing.T) {
 }
 
 // Note: Full center-leaf integration would require network connectivity
-// and proper URL resolution between nodes. This test focuses on 
+// and proper URL resolution between nodes. This test focuses on
 // configuration and individual node functionality.
 func TestLeafNodeConfiguration(t *testing.T) {
 	// Test leaf node configuration (without actual center connection)
 	leafBucket := fmt.Sprintf("leaf-config-test-%d", time.Now().UnixNano())
-	
+
 	// This will fail as expected since we don't have a real center node
 	// but it tests the configuration parsing
 	_, err := nats.NewKVStore(nats.KVConfig{
-		Embedded:  true,
+		Embedded:   true,
 		BucketName: leafBucket,
-		NodeType:  "leaf",
-		CenterURL: "nats://nonexistent-center:4222",
-		DataDir:   "./test-nats-leaf",
+		NodeType:   "leaf",
+		CenterURL:  "nats://nonexistent-center:4222",
+		DataDir:    "./test-nats-leaf",
 	})
-	
+
 	// We expect this to fail since the center doesn't exist
 	if err == nil {
 		t.Error("Expected error when connecting to nonexistent center")
 	}
-	
+
 	// The error should mention connection failure, not configuration issues
 	if !contains(err.Error(), "connect") && !contains(err.Error(), "dial") {
 		t.Logf("Got expected connection error: %v", err)
@@ -153,11 +153,11 @@ func TestNodeTypeValidation(t *testing.T) {
 		NodeType:   "leaf",
 		CenterURL:  "", // Missing center URL
 	})
-	
+
 	if err == nil {
 		t.Error("Expected error for leaf node without center URL")
 	}
-	
+
 	if !contains(err.Error(), "center URL") {
 		t.Errorf("Expected center URL error, got: %v", err)
 	}
@@ -165,10 +165,10 @@ func TestNodeTypeValidation(t *testing.T) {
 
 // Helper function to check if a string contains a substring (case insensitive)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-			len(s) > len(substr) && 
-			(s[0:len(substr)] == substr || 
-			 s[len(s)-len(substr):] == substr ||
-			 strings.Contains(strings.ToLower(s), strings.ToLower(substr))))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			len(s) > len(substr) &&
+				(s[0:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					strings.Contains(strings.ToLower(s), strings.ToLower(substr))))
 }

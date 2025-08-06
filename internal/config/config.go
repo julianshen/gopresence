@@ -34,20 +34,20 @@ type NATSConfig struct {
 	JetStreamMaxStore  int64  `yaml:"jetstream_max_store"`
 	KVBucket           string `yaml:"kv_bucket"`
 	KVTTL              string `yaml:"kv_ttl"`
-	CenterURL          string `yaml:"center_url"`       // URL of center node (for leaf nodes)
-	LeafPort           int    `yaml:"leaf_port"`        // Port for leaf connections (for center nodes)
-	ClusterPort        int    `yaml:"cluster_port"`     // Port for cluster connections
+	CenterURL          string `yaml:"center_url"`   // URL of center node (for leaf nodes)
+	LeafPort           int    `yaml:"leaf_port"`    // Port for leaf connections (for center nodes)
+	ClusterPort        int    `yaml:"cluster_port"` // Port for cluster connections
 }
 
 // CacheConfig holds cache configuration
 type CacheConfig struct {
-	Type         string `yaml:"type"`
-	MaxSize      int    `yaml:"max_size"`       // Legacy: converted to MaxCost for Ristretto
-	TTL          string `yaml:"ttl"`            // Legacy: used for backward compatibility
-	MaxCost      int64  `yaml:"max_cost"`       // Ristretto: Maximum memory cost in bytes
-	NumCounters  int64  `yaml:"num_counters"`   // Ristretto: Number of counters for TinyLFU
-	BufferItems  int64  `yaml:"buffer_items"`   // Ristretto: Buffer size for async operations  
-	Metrics      bool   `yaml:"metrics"`        // Ristretto: Enable cache metrics
+	Type        string `yaml:"type"`
+	MaxSize     int    `yaml:"max_size"`     // Legacy: converted to MaxCost for Ristretto
+	TTL         string `yaml:"ttl"`          // Legacy: used for backward compatibility
+	MaxCost     int64  `yaml:"max_cost"`     // Ristretto: Maximum memory cost in bytes
+	NumCounters int64  `yaml:"num_counters"` // Ristretto: Number of counters for TinyLFU
+	BufferItems int64  `yaml:"buffer_items"` // Ristretto: Buffer size for async operations
+	Metrics     bool   `yaml:"metrics"`      // Ristretto: Enable cache metrics
 }
 
 // AuthConfig holds authentication configuration
@@ -77,7 +77,7 @@ func Load() (*Config, error) {
 			Embedded:           getEnvBoolOrDefault("NATS_EMBEDDED", true),
 			ServerURL:          getEnvOrDefault("NATS_SERVER_URL", ""),
 			DataDir:            getEnvOrDefault("NATS_DATA_DIR", "./nats-data"),
-			JetStreamMaxMemory: getEnvInt64OrDefault("NATS_JETSTREAM_MAX_MEMORY", 64*1024*1024), // 64MB
+			JetStreamMaxMemory: getEnvInt64OrDefault("NATS_JETSTREAM_MAX_MEMORY", 64*1024*1024),  // 64MB
 			JetStreamMaxStore:  getEnvInt64OrDefault("NATS_JETSTREAM_MAX_STORE", 1024*1024*1024), // 1GB
 			KVBucket:           getEnvOrDefault("NATS_KV_BUCKET", "presence"),
 			KVTTL:              getEnvOrDefault("NATS_KV_TTL", "3600s"),
@@ -87,9 +87,9 @@ func Load() (*Config, error) {
 		},
 		Cache: CacheConfig{
 			Type:        getEnvOrDefault("CACHE_TYPE", "ristretto"),
-			MaxSize:     getEnvIntOrDefault("CACHE_MAX_SIZE", 10000),      // Legacy support
-			TTL:         getEnvOrDefault("CACHE_TTL", "300s"),             // Legacy support
-			MaxCost:     getEnvInt64OrDefault("CACHE_MAX_COST", 1000000),  // 1MB default
+			MaxSize:     getEnvIntOrDefault("CACHE_MAX_SIZE", 10000),     // Legacy support
+			TTL:         getEnvOrDefault("CACHE_TTL", "300s"),            // Legacy support
+			MaxCost:     getEnvInt64OrDefault("CACHE_MAX_COST", 1000000), // 1MB default
 			NumCounters: getEnvInt64OrDefault("CACHE_NUM_COUNTERS", 100000),
 			BufferItems: getEnvInt64OrDefault("CACHE_BUFFER_ITEMS", 64),
 			Metrics:     getEnvBoolOrDefault("CACHE_METRICS", true),

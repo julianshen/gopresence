@@ -43,23 +43,23 @@ type WatchEvent struct {
 
 // KVConfig holds configuration for the KV store
 type KVConfig struct {
-	ServerURL    string
-	BucketName   string
-	Embedded     bool
-	DataDir      string
-	NodeType     string   // "center" or "leaf"
-	CenterURL    string   // URL of center node (for leaf nodes)
-	LeafPort     int      // Port for leaf connections (for center nodes)
-	ClusterPort  int      // Port for cluster connections (for center nodes)
+	ServerURL   string
+	BucketName  string
+	Embedded    bool
+	DataDir     string
+	NodeType    string // "center" or "leaf"
+	CenterURL   string // URL of center node (for leaf nodes)
+	LeafPort    int    // Port for leaf connections (for center nodes)
+	ClusterPort int    // Port for cluster connections (for center nodes)
 }
 
 // kvStore implements KVStore using NATS KV
 type kvStore struct {
-	config   KVConfig
-	server   *server.Server
-	conn     *nats.Conn
-	js       jetstream.JetStream
-	kv       jetstream.KeyValue
+	config KVConfig
+	server *server.Server
+	conn   *nats.Conn
+	js     jetstream.JetStream
+	kv     jetstream.KeyValue
 }
 
 // NewKVStore creates a new NATS KV store
@@ -102,7 +102,7 @@ func NewKVStore(config KVConfig) (KVStore, error) {
 	if nodeType == "" {
 		nodeType = "center"
 	}
-	
+
 	// Create JetStream context and KV only for center nodes or when connecting to center
 	if nodeType == "center" || (nodeType == "leaf" && config.CenterURL != "") {
 		js, err := jetstream.New(conn)
@@ -153,13 +153,13 @@ func NewKVStore(config KVConfig) (KVStore, error) {
 // Get retrieves a presence from the KV store
 func (s *kvStore) Get(ctx context.Context, userID string) (models.Presence, error) {
 	key := s.presenceKey(userID)
-	
+
 	entry, err := s.kv.Get(ctx, key)
 	if err != nil {
 		// Check for various "not found" error types
-		if errors.Is(err, jetstream.ErrKeyNotFound) || 
-		   strings.Contains(err.Error(), "not found") ||
-		   strings.Contains(err.Error(), "no message found") {
+		if errors.Is(err, jetstream.ErrKeyNotFound) ||
+			strings.Contains(err.Error(), "not found") ||
+			strings.Contains(err.Error(), "no message found") {
 			return models.Presence{}, fmt.Errorf("presence not found for user %s", userID)
 		}
 		return models.Presence{}, fmt.Errorf("failed to get presence: %w", err)
@@ -186,7 +186,7 @@ func (s *kvStore) Get(ctx context.Context, userID string) (models.Presence, erro
 // Set stores a presence in the KV store
 func (s *kvStore) Set(ctx context.Context, userID string, presence models.Presence, ttl time.Duration) error {
 	key := s.presenceKey(userID)
-	
+
 	data, err := json.Marshal(presence)
 	if err != nil {
 		return fmt.Errorf("failed to marshal presence: %w", err)
@@ -205,7 +205,7 @@ func (s *kvStore) Set(ctx context.Context, userID string, presence models.Presen
 // Delete removes a presence from the KV store
 func (s *kvStore) Delete(ctx context.Context, userID string) error {
 	key := s.presenceKey(userID)
-	
+
 	err := s.kv.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to delete presence: %w", err)
@@ -217,7 +217,7 @@ func (s *kvStore) Delete(ctx context.Context, userID string) error {
 // GetMultiple retrieves multiple presences from the KV store
 func (s *kvStore) GetMultiple(ctx context.Context, userIDs []string) (map[string]models.Presence, error) {
 	result := make(map[string]models.Presence)
-	
+
 	for _, userID := range userIDs {
 		presence, err := s.Get(ctx, userID)
 		if err == nil {
@@ -238,18 +238,18 @@ func (s *kvStore) Watch(ctx context.Context, callback func(WatchEvent)) error {
 
 	go func() {
 		defer watcher.Stop()
-		
+
 		for {
 			select {
 			case entry := <-watcher.Updates():
 				if entry == nil {
 					return
 				}
-				
+
 				event := WatchEvent{
 					Key: entry.Key(),
 				}
-				
+
 				if entry.Operation() == jetstream.KeyValuePut {
 					event.Type = WatchEventPut
 					var presence models.Presence
@@ -259,9 +259,9 @@ func (s *kvStore) Watch(ctx context.Context, callback func(WatchEvent)) error {
 				} else if entry.Operation() == jetstream.KeyValueDelete {
 					event.Type = WatchEventDelete
 				}
-				
+
 				callback(event)
-				
+
 			case <-ctx.Done():
 				return
 			}
@@ -288,14 +288,14 @@ func (s *kvStore) startEmbeddedServer() error {
 	if nodeType == "" {
 		nodeType = "center"
 	}
-	
+
 	opts := &server.Options{
 		Host:       "127.0.0.1",
-		Port:       -1, // Random port for client connections
+		Port:       -1,                   // Random port for client connections
 		JetStream:  nodeType == "center", // Only center nodes have JetStream
 		ServerName: fmt.Sprintf("%s-%d", nodeType, time.Now().UnixNano()),
 	}
-	
+
 	if s.config.DataDir != "" {
 		opts.StoreDir = s.config.DataDir
 	}
@@ -305,20 +305,20 @@ func (s *kvStore) startEmbeddedServer() error {
 		// Center node configuration
 		opts.JetStreamMaxMemory = 64 * 1024 * 1024  // 64MB
 		opts.JetStreamMaxStore = 1024 * 1024 * 1024 // 1GB
-		
+
 		// Setup leaf node connections
 		if s.config.LeafPort > 0 {
 			opts.LeafNode.Host = "0.0.0.0"
 			opts.LeafNode.Port = s.config.LeafPort
 		}
-		
+
 		// Setup cluster if configured
 		if s.config.ClusterPort > 0 {
 			opts.Cluster.Host = "0.0.0.0"
 			opts.Cluster.Port = s.config.ClusterPort
 			opts.Cluster.Name = "presence-cluster"
 		}
-		
+
 	} else if nodeType == "leaf" {
 		// Leaf node configuration
 		if s.config.CenterURL != "" {
@@ -350,17 +350,17 @@ func (s *kvStore) startEmbeddedServer() error {
 		// Center nodes with JetStream need more time
 		timeout = 15 * time.Second
 	}
-	
+
 	if !server.ReadyForConnections(timeout) {
 		server.Shutdown()
 		return fmt.Errorf("server failed to start within %v (node type: %s)", timeout, nodeType)
 	}
 
 	s.server = server
-	
+
 	// Update config with server URL
 	s.config.ServerURL = server.ClientURL()
-	
+
 	return nil
 }
 
@@ -369,11 +369,11 @@ func (s *kvStore) cleanup() error {
 	if s.conn != nil {
 		s.conn.Close()
 	}
-	
+
 	if s.server != nil {
 		s.server.Shutdown()
 		s.server.WaitForShutdown()
 	}
-	
+
 	return nil
 }

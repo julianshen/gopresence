@@ -136,12 +136,12 @@ func (m *JWTMiddleware) validateToken(r *http.Request) (*jwt.Token, error) {
 func (m *JWTMiddleware) writeUnauthorizedResponse(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	
+
 	response := map[string]interface{}{
 		"success": false,
 		"error":   message,
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 

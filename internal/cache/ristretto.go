@@ -32,15 +32,15 @@ type CacheMetrics struct {
 
 // RistrettoConfig holds Ristretto cache configuration
 type RistrettoConfig struct {
-	MaxCost      int64 // Maximum cost of cache (bytes)
-	NumCounters  int64 // Number of counters for TinyLFU admission policy
-	BufferItems  int64 // Buffer size for async operations
-	Metrics      bool  // Enable metrics collection
+	MaxCost     int64 // Maximum cost of cache (bytes)
+	NumCounters int64 // Number of counters for TinyLFU admission policy
+	BufferItems int64 // Buffer size for async operations
+	Metrics     bool  // Enable metrics collection
 }
 
 // ristrettoCache implements MemoryCache using Ristretto
 type ristrettoCache struct {
-	cache *ristretto.Cache
+	cache  *ristretto.Cache
 	config RistrettoConfig
 }
 
@@ -100,7 +100,7 @@ func (c *ristrettoCache) Set(userID string, presence models.Presence, ttl time.D
 	// Ristretto handles admission and eviction automatically
 	// Note: Ristretto operations are asynchronous, but Set usually succeeds immediately
 	c.cache.Set(userID, presence, cost)
-	
+
 	// Wait briefly for the set operation to complete in Ristretto's buffers
 	// This is needed for tests that expect immediate consistency
 	c.cache.Wait()
@@ -116,13 +116,13 @@ func (c *ristrettoCache) Delete(userID string) {
 // GetMultiple retrieves multiple presences from the cache
 func (c *ristrettoCache) GetMultiple(userIDs []string) map[string]models.Presence {
 	result := make(map[string]models.Presence)
-	
+
 	for _, userID := range userIDs {
 		if presence, found := c.Get(userID); found {
 			result[userID] = presence
 		}
 	}
-	
+
 	return result
 }
 
@@ -169,7 +169,7 @@ func (c *ristrettoCache) estimateCost(presence models.Presence) int64 {
 		// Fallback to a reasonable estimate
 		return 200
 	}
-	
+
 	// Add some overhead for Go object structure
 	return int64(len(data) + 100)
 }
@@ -180,7 +180,7 @@ func NewMemoryCacheLegacy(maxSize int, defaultTTL time.Duration) (MemoryCache, e
 	// Estimate max cost based on max size and average presence size
 	avgPresenceSize := int64(200) // bytes
 	maxCost := int64(maxSize) * avgPresenceSize
-	
+
 	// Set reasonable defaults for Ristretto
 	config := RistrettoConfig{
 		MaxCost:     maxCost,
@@ -188,6 +188,6 @@ func NewMemoryCacheLegacy(maxSize int, defaultTTL time.Duration) (MemoryCache, e
 		BufferItems: 64,                  // Default buffer size
 		Metrics:     true,                // Enable metrics
 	}
-	
+
 	return NewRistrettoCache(config)
 }

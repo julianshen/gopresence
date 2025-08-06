@@ -31,7 +31,7 @@ func TestPresenceStatus_IsValid(t *testing.T) {
 
 func TestPresence_Validate(t *testing.T) {
 	now := time.Now()
-	
+
 	tests := []struct {
 		name     string
 		presence Presence
@@ -94,7 +94,7 @@ func TestPresence_Validate(t *testing.T) {
 
 func TestPresence_IsExpired(t *testing.T) {
 	now := time.Now()
-	
+
 	tests := []struct {
 		name     string
 		presence Presence
@@ -137,7 +137,7 @@ func TestPresence_IsExpired(t *testing.T) {
 
 func TestPresence_JSONSerialization(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
-	
+
 	original := Presence{
 		UserID:    "user123",
 		Status:    StatusBusy,
@@ -184,7 +184,7 @@ func TestPresence_JSONSerialization(t *testing.T) {
 
 func TestPresenceResponse_JSONSerialization(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
-	
+
 	response := PresenceResponse{
 		Success: true,
 		Data: map[string]Presence{

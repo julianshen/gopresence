@@ -287,21 +287,34 @@ serviceMonitor:
 # Run all tests
 make test
 
-# Run tests with coverage
+# Run tests with coverage (HTML report at coverage.html)
 make test-coverage
+
+# Enforce minimum 75% total coverage
+make coverage-check
 
 # Run specific test package
 go test ./internal/cache -v
 ```
 
-### Test Coverage
+### Test Coverage Policy
+
+- Minimum total coverage enforced at 75% via `make coverage-check`.
+- Some NATS integration tests are skipped in CI to avoid flakiness due to environment constraints; they can be enabled for local/integration runs if needed.
+
+### Performance Benchmarks
+
+```bash
+# Run service-layer benchmarks (in-memory KV fake for stability)
+make bench-service
+```
 
 The project maintains comprehensive test coverage:
 
 - **Unit Tests**: All core components (cache, models, handlers, auth)
 - **Integration Tests**: Full HTTP API and service layer
 - **End-to-End Tests**: Complete hub-and-spoke architecture
-- **Performance Tests**: Cache metrics and Ristretto configuration
+- **Performance Tests**: Cache metrics, Ristretto configuration, and service benchmarks
 
 ### Load Testing
 

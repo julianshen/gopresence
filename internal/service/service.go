@@ -13,8 +13,8 @@ import (
 
 // PresenceService implements the core business logic for presence management
 type PresenceService struct {
-	cache cache.MemoryCache
-	store nats.KVStore
+	cache  cache.MemoryCache
+	store  nats.KVStore
 	nodeID string
 }
 

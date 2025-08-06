@@ -67,7 +67,7 @@ func TestGetPresenceHandler(t *testing.T) {
 	// Test successful get
 	req := httptest.NewRequest("GET", "/api/v2/presence/user1", nil)
 	rr := httptest.NewRecorder()
-	
+
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v2/presence/{user_id}", handler.GetPresence).Methods("GET")
 	router.ServeHTTP(rr, req)

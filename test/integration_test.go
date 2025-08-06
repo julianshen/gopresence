@@ -36,7 +36,7 @@ type IntegrationTestSuite struct {
 func setupIntegrationTest(t *testing.T) *IntegrationTestSuite {
 	// Create components
 	memCache := cache.NewMemoryCache(1000, time.Minute)
-	
+
 	// Use unique bucket name for each test
 	bucketName := fmt.Sprintf("test-%d", time.Now().UnixNano())
 	store, err := nats.NewKVStore(nats.KVConfig{
@@ -233,7 +233,7 @@ func TestIntegration_MultiplePresences(t *testing.T) {
 
 	for i, userID := range users {
 		token := suite.createValidJWT(userID)
-		
+
 		setRequest := handlers.SetPresenceRequest{
 			Status:  statuses[i],
 			Message: fmt.Sprintf("User %d message", i+1),
@@ -298,10 +298,10 @@ func TestIntegration_BatchPresence(t *testing.T) {
 
 	// Set up test users
 	users := []string{"batch-user-1", "batch-user-2", "batch-user-3"}
-	
+
 	for _, userID := range users {
 		token := suite.createValidJWT(userID)
-		
+
 		setRequest := handlers.SetPresenceRequest{
 			Status:  models.StatusOnline,
 			Message: "Batch test",

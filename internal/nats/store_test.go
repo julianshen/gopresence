@@ -92,7 +92,7 @@ func TestKVStore_TTLExpiration(t *testing.T) {
 	// In a real implementation, TTL would be handled at the application level
 	// or using the bucket-level TTL. For now, we'll skip the expiration check
 	// and just verify the set/get functionality works.
-	
+
 	// Manual deletion to simulate expiration
 	err = store.Delete(ctx, "user1")
 	if err != nil {

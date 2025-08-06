@@ -16,7 +16,7 @@ func TestRistrettoMetrics(t *testing.T) {
 		BufferItems: 64,
 		Metrics:     true,
 	}
-	
+
 	ristrettoCache, err := cache.NewRistrettoCache(config)
 	if err != nil {
 		t.Fatalf("Failed to create Ristretto cache: %v", err)
@@ -24,7 +24,7 @@ func TestRistrettoMetrics(t *testing.T) {
 
 	// Test metrics functionality
 	now := time.Now().UTC().Truncate(time.Second)
-	
+
 	// Add some items
 	for i := 0; i < 5; i++ {
 		presence := models.Presence{
@@ -57,7 +57,7 @@ func TestRistrettoMetrics(t *testing.T) {
 
 	// Get metrics
 	metrics := ristrettoCache.Metrics()
-	
+
 	t.Logf("Cache Metrics:")
 	t.Logf("  Hits: %d", metrics.Hits)
 	t.Logf("  Misses: %d", metrics.Misses)
@@ -81,7 +81,7 @@ func TestRistrettoCacheConfiguration(t *testing.T) {
 	// Test that we can create caches with different configurations
 	configs := []cache.RistrettoConfig{
 		{
-			MaxCost:     100000,  // Small cache
+			MaxCost:     100000, // Small cache
 			NumCounters: 1000,
 			BufferItems: 16,
 			Metrics:     false,
@@ -110,7 +110,7 @@ func TestRistrettoCacheConfiguration(t *testing.T) {
 		}
 
 		cache.Set("config-test-user", presence, time.Minute)
-		
+
 		if retrieved, found := cache.Get("config-test-user"); found {
 			if retrieved.UserID != "config-test-user" {
 				t.Errorf("Config %d: Expected UserID 'config-test-user', got '%s'", i, retrieved.UserID)
