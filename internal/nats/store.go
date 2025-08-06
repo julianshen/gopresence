@@ -1,0 +1,379 @@
+package nats
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
+
+	"gopresence/internal/models"
+)
+
+// KVStore defines the interface for NATS KV operations
+type KVStore interface {
+	Get(ctx context.Context, userID string) (models.Presence, error)
+	Set(ctx context.Context, userID string, presence models.Presence, ttl time.Duration) error
+	Delete(ctx context.Context, userID string) error
+	GetMultiple(ctx context.Context, userIDs []string) (map[string]models.Presence, error)
+	Watch(ctx context.Context, callback func(WatchEvent)) error
+	Close() error
+}
+
+// WatchEventType represents the type of watch event
+type WatchEventType string
+
+const (
+	WatchEventPut    WatchEventType = "PUT"
+	WatchEventDelete WatchEventType = "DELETE"
+)
+
+// WatchEvent represents a change event in the KV store
+type WatchEvent struct {
+	Key      string
+	Type     WatchEventType
+	Presence *models.Presence
+}
+
+// KVConfig holds configuration for the KV store
+type KVConfig struct {
+	ServerURL    string
+	BucketName   string
+	Embedded     bool
+	DataDir      string
+	NodeType     string   // "center" or "leaf"
+	CenterURL    string   // URL of center node (for leaf nodes)
+	LeafPort     int      // Port for leaf connections (for center nodes)
+	ClusterPort  int      // Port for cluster connections (for center nodes)
+}
+
+// kvStore implements KVStore using NATS KV
+type kvStore struct {
+	config   KVConfig
+	server   *server.Server
+	conn     *nats.Conn
+	js       jetstream.JetStream
+	kv       jetstream.KeyValue
+}
+
+// NewKVStore creates a new NATS KV store
+func NewKVStore(config KVConfig) (KVStore, error) {
+	store := &kvStore{
+		config: config,
+	}
+
+	// Start embedded server if configured
+	if config.Embedded {
+		if err := store.startEmbeddedServer(); err != nil {
+			return nil, fmt.Errorf("failed to start embedded server: %w", err)
+		}
+	}
+
+	// Connect to NATS
+	serverURL := config.ServerURL
+	if serverURL == "" {
+		if config.NodeType == "leaf" && config.CenterURL != "" {
+			// Leaf nodes should connect to center node for KV operations
+			serverURL = config.CenterURL
+		} else {
+			serverURL = nats.DefaultURL
+		}
+	}
+
+	conn, err := nats.Connect(serverURL,
+		nats.RetryOnFailedConnect(true),
+		nats.MaxReconnects(-1),
+		nats.ReconnectWait(time.Second),
+	)
+	if err != nil {
+		store.cleanup()
+		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
+	}
+	store.conn = conn
+
+	// Default to center node if NodeType is not specified (for backward compatibility)
+	nodeType := config.NodeType
+	if nodeType == "" {
+		nodeType = "center"
+	}
+	
+	// Create JetStream context and KV only for center nodes or when connecting to center
+	if nodeType == "center" || (nodeType == "leaf" && config.CenterURL != "") {
+		js, err := jetstream.New(conn)
+		if err != nil {
+			store.cleanup()
+			return nil, fmt.Errorf("failed to create JetStream context: %w", err)
+		}
+		store.js = js
+
+		// Create or get KV bucket
+		bucketName := config.BucketName
+		if bucketName == "" {
+			bucketName = "presence"
+		}
+
+		// Only center nodes can create KV buckets
+		if nodeType == "center" {
+			kv, err := js.CreateKeyValue(context.Background(), jetstream.KeyValueConfig{
+				Bucket: bucketName,
+				TTL:    time.Hour, // Default TTL
+			})
+			if err != nil {
+				// Try to get existing bucket
+				kv, err = js.KeyValue(context.Background(), bucketName)
+				if err != nil {
+					store.cleanup()
+					return nil, fmt.Errorf("failed to create/get KV bucket: %w", err)
+				}
+			}
+			store.kv = kv
+		} else {
+			// Leaf nodes access existing KV bucket
+			kv, err := js.KeyValue(context.Background(), bucketName)
+			if err != nil {
+				store.cleanup()
+				return nil, fmt.Errorf("failed to access KV bucket: %w", err)
+			}
+			store.kv = kv
+		}
+	} else {
+		store.cleanup()
+		return nil, fmt.Errorf("leaf nodes must specify center URL for KV operations")
+	}
+
+	return store, nil
+}
+
+// Get retrieves a presence from the KV store
+func (s *kvStore) Get(ctx context.Context, userID string) (models.Presence, error) {
+	key := s.presenceKey(userID)
+	
+	entry, err := s.kv.Get(ctx, key)
+	if err != nil {
+		// Check for various "not found" error types
+		if errors.Is(err, jetstream.ErrKeyNotFound) || 
+		   strings.Contains(err.Error(), "not found") ||
+		   strings.Contains(err.Error(), "no message found") {
+			return models.Presence{}, fmt.Errorf("presence not found for user %s", userID)
+		}
+		return models.Presence{}, fmt.Errorf("failed to get presence: %w", err)
+	}
+
+	// Check if the entry is nil or has no data
+	if entry == nil || len(entry.Value()) == 0 {
+		return models.Presence{}, fmt.Errorf("presence not found for user %s", userID)
+	}
+
+	var presence models.Presence
+	if err := json.Unmarshal(entry.Value(), &presence); err != nil {
+		return models.Presence{}, fmt.Errorf("failed to unmarshal presence: %w", err)
+	}
+
+	// Additional validation - check if this is actually a valid presence
+	if err := presence.Validate(); err != nil {
+		return models.Presence{}, fmt.Errorf("presence not found for user %s", userID)
+	}
+
+	return presence, nil
+}
+
+// Set stores a presence in the KV store
+func (s *kvStore) Set(ctx context.Context, userID string, presence models.Presence, ttl time.Duration) error {
+	key := s.presenceKey(userID)
+	
+	data, err := json.Marshal(presence)
+	if err != nil {
+		return fmt.Errorf("failed to marshal presence: %w", err)
+	}
+
+	// Note: NATS KV doesn't support per-key TTL easily, so we rely on bucket-level TTL
+	// Individual key TTL would require additional application-level logic
+	_, err = s.kv.Put(ctx, key, data)
+	if err != nil {
+		return fmt.Errorf("failed to put presence: %w", err)
+	}
+
+	return nil
+}
+
+// Delete removes a presence from the KV store
+func (s *kvStore) Delete(ctx context.Context, userID string) error {
+	key := s.presenceKey(userID)
+	
+	err := s.kv.Delete(ctx, key)
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to delete presence: %w", err)
+	}
+
+	return nil
+}
+
+// GetMultiple retrieves multiple presences from the KV store
+func (s *kvStore) GetMultiple(ctx context.Context, userIDs []string) (map[string]models.Presence, error) {
+	result := make(map[string]models.Presence)
+	
+	for _, userID := range userIDs {
+		presence, err := s.Get(ctx, userID)
+		if err == nil {
+			result[userID] = presence
+		}
+		// Ignore not found errors, just skip those users
+	}
+
+	return result, nil
+}
+
+// Watch watches for changes in the KV store
+func (s *kvStore) Watch(ctx context.Context, callback func(WatchEvent)) error {
+	watcher, err := s.kv.WatchAll(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create watcher: %w", err)
+	}
+
+	go func() {
+		defer watcher.Stop()
+		
+		for {
+			select {
+			case entry := <-watcher.Updates():
+				if entry == nil {
+					return
+				}
+				
+				event := WatchEvent{
+					Key: entry.Key(),
+				}
+				
+				if entry.Operation() == jetstream.KeyValuePut {
+					event.Type = WatchEventPut
+					var presence models.Presence
+					if err := json.Unmarshal(entry.Value(), &presence); err == nil {
+						event.Presence = &presence
+					}
+				} else if entry.Operation() == jetstream.KeyValueDelete {
+					event.Type = WatchEventDelete
+				}
+				
+				callback(event)
+				
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return nil
+}
+
+// Close closes the KV store and cleans up resources
+func (s *kvStore) Close() error {
+	return s.cleanup()
+}
+
+// presenceKey generates a KV key for a user presence
+func (s *kvStore) presenceKey(userID string) string {
+	return fmt.Sprintf("user.%s", userID)
+}
+
+// startEmbeddedServer starts an embedded NATS server
+func (s *kvStore) startEmbeddedServer() error {
+	// Default to center node if NodeType is not specified
+	nodeType := s.config.NodeType
+	if nodeType == "" {
+		nodeType = "center"
+	}
+	
+	opts := &server.Options{
+		Host:       "127.0.0.1",
+		Port:       -1, // Random port for client connections
+		JetStream:  nodeType == "center", // Only center nodes have JetStream
+		ServerName: fmt.Sprintf("%s-%d", nodeType, time.Now().UnixNano()),
+	}
+	
+	if s.config.DataDir != "" {
+		opts.StoreDir = s.config.DataDir
+	}
+
+	// Configure based on node type
+	if nodeType == "center" {
+		// Center node configuration
+		opts.JetStreamMaxMemory = 64 * 1024 * 1024  // 64MB
+		opts.JetStreamMaxStore = 1024 * 1024 * 1024 // 1GB
+		
+		// Setup leaf node connections
+		if s.config.LeafPort > 0 {
+			opts.LeafNode.Host = "0.0.0.0"
+			opts.LeafNode.Port = s.config.LeafPort
+		}
+		
+		// Setup cluster if configured
+		if s.config.ClusterPort > 0 {
+			opts.Cluster.Host = "0.0.0.0"
+			opts.Cluster.Port = s.config.ClusterPort
+			opts.Cluster.Name = "presence-cluster"
+		}
+		
+	} else if nodeType == "leaf" {
+		// Leaf node configuration
+		if s.config.CenterURL != "" {
+			centerURL, err := url.Parse(s.config.CenterURL)
+			if err != nil {
+				return fmt.Errorf("invalid center URL: %w", err)
+			}
+			opts.LeafNode.Remotes = []*server.RemoteLeafOpts{
+				{
+					URLs: []*url.URL{centerURL},
+				},
+			}
+		}
+		// Leaf nodes don't have JetStream
+		opts.JetStream = false
+	}
+
+	server, err := server.NewServer(opts)
+	if err != nil {
+		return fmt.Errorf("failed to create server: %w", err)
+	}
+
+	// Start server in background
+	go server.Start()
+
+	// Wait for server to be ready
+	timeout := 10 * time.Second
+	if nodeType == "center" {
+		// Center nodes with JetStream need more time
+		timeout = 15 * time.Second
+	}
+	
+	if !server.ReadyForConnections(timeout) {
+		server.Shutdown()
+		return fmt.Errorf("server failed to start within %v (node type: %s)", timeout, nodeType)
+	}
+
+	s.server = server
+	
+	// Update config with server URL
+	s.config.ServerURL = server.ClientURL()
+	
+	return nil
+}
+
+// cleanup closes connections and shuts down embedded server
+func (s *kvStore) cleanup() error {
+	if s.conn != nil {
+		s.conn.Close()
+	}
+	
+	if s.server != nil {
+		s.server.Shutdown()
+		s.server.WaitForShutdown()
+	}
+	
+	return nil
+}

@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Test files
+*_test.go
+test/
+coverage.out
+
+# Build artifacts
+presence-service
+*.exe
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NATS data
+nats-data*
+
+# Helm charts (not needed in container)
+helm/
+
+# Config files (will be provided via env vars)
+*.env
+
+# Node modules (if any)
+node_modules/
+
+# Temporary files
+tmp/
+temp/

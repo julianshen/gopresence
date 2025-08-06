@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Center Node
+  presence-center:
+    build: .
+    container_name: presence-center
+    ports:
+      - "8080:8080"    # HTTP API
+      - "4222:4222"    # NATS
+      - "7422:7422"    # NATS Leaf
+    environment:
+      - SERVICE_NAME=presence-service
+      - SERVICE_VERSION=v2
+      - SERVICE_PORT=8080
+      - NODE_TYPE=center
+      - NODE_ID=center-node-1
+      - NATS_EMBEDDED=true
+      - NATS_DATA_DIR=/data/nats
+      - NATS_JETSTREAM_MAX_MEMORY=67108864
+      - NATS_JETSTREAM_MAX_STORE=1073741824
+      - NATS_KV_BUCKET=presence
+      - NATS_KV_TTL=3600s
+      - NATS_LEAF_PORT=7422
+      - NATS_CLUSTER_PORT=6222
+      - CACHE_TYPE=ristretto
+      - CACHE_MAX_COST=2000000
+      - CACHE_NUM_COUNTERS=200000
+      - CACHE_BUFFER_ITEMS=64
+      - CACHE_METRICS=true
+      - JWT_SECRET=test-secret-change-in-production
+      - JWT_ISSUER=presence-service
+      - JWT_TTL=24h
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+    volumes:
+      - center_data:/data/nats
+      - /tmp:/tmp
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Leaf Node 1
+  presence-leaf-1:
+    build: .
+    container_name: presence-leaf-1
+    ports:
+      - "8081:8080"    # HTTP API (different port for local access)
+    environment:
+      - SERVICE_NAME=presence-service
+      - SERVICE_VERSION=v2
+      - SERVICE_PORT=8080
+      - NODE_TYPE=leaf
+      - NODE_ID=leaf-node-1
+      - NATS_EMBEDDED=true
+      - NATS_DATA_DIR=/data/nats
+      - NATS_KV_BUCKET=presence
+      - NATS_CENTER_URL=nats://presence-center:4222
+      - CACHE_TYPE=ristretto
+      - CACHE_MAX_COST=1000000
+      - CACHE_NUM_COUNTERS=100000
+      - CACHE_BUFFER_ITEMS=64
+      - CACHE_METRICS=true
+      - JWT_SECRET=test-secret-change-in-production
+      - JWT_ISSUER=presence-service
+      - JWT_TTL=24h
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+    volumes:
+      - leaf1_data:/data/nats
+      - /tmp:/tmp
+    depends_on:
+      - presence-center
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Leaf Node 2
+  presence-leaf-2:
+    build: .
+    container_name: presence-leaf-2
+    ports:
+      - "8082:8080"    # HTTP API (different port for local access)
+    environment:
+      - SERVICE_NAME=presence-service
+      - SERVICE_VERSION=v2
+      - SERVICE_PORT=8080
+      - NODE_TYPE=leaf
+      - NODE_ID=leaf-node-2
+      - NATS_EMBEDDED=true
+      - NATS_DATA_DIR=/data/nats
+      - NATS_KV_BUCKET=presence
+      - NATS_CENTER_URL=nats://presence-center:4222
+      - CACHE_TYPE=ristretto
+      - CACHE_MAX_COST=1000000
+      - CACHE_NUM_COUNTERS=100000
+      - CACHE_BUFFER_ITEMS=64
+      - CACHE_METRICS=true
+      - JWT_SECRET=test-secret-change-in-production
+      - JWT_ISSUER=presence-service
+      - JWT_TTL=24h
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+    volumes:
+      - leaf2_data:/data/nats
+      - /tmp:/tmp
+    depends_on:
+      - presence-center
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  center_data:
+  leaf1_data:
+  leaf2_data:
+
+networks:
+  default:
+    name: presence-network
