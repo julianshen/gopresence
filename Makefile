@@ -26,12 +26,12 @@ test-coverage:
 # Enforce minimum total coverage of 85%
 coverage-check:
 	go test ./... -coverprofile=coverage.out
-	go tool cover -func=coverage.out | awk '/total:/ {print $3}' | sed 's/%//' | awk '{if ($1 < 85) { printf("Coverage %.2f%% is below required 85%%\n", $1); exit 1 } else { printf("Coverage %.2f%% meets requirement (>=85%%)\n", $1) }}'
+	go tool cover -func=coverage.out | tail -n 1 | awk '{print $NF}' | sed 's/%//' | awk '{if ($1 < 85) { printf("Coverage %.2f%% is below required 85%%\n", $1); exit 1 } else { printf("Coverage %.2f%% meets requirement (>=85%%)\n", $1) }}'
 
 # Run tests, enforce >=85% coverage, and generate HTML report
 test-coverage-enforced:
 	go test ./... -coverprofile=coverage.out
-	go tool cover -func=coverage.out | awk '/total:/ {print $3}' | sed 's/%//' | awk '{if ($1 < 85) exit 1}'
+	go tool cover -func=coverage.out | tail -n 1 | awk '{print $NF}' | sed 's/%//' | awk '{if ($1 < 85) exit 1}'
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage OK (>=85%). Report at coverage.html"
 
