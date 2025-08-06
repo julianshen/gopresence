@@ -164,6 +164,7 @@ helm-template:
 # Clean up
 clean:
 	rm -f presence-service
+	rm -rf build/
 	rm -f coverage.out coverage.html
 	docker rmi $(IMAGE_NAME):$(VERSION) $(IMAGE_NAME):latest 2>/dev/null || true
 	docker-compose down -v --rmi all 2>/dev/null || true

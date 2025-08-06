@@ -85,7 +85,7 @@ func Load() (*Config, error) {
 			CenterURL:          getEnvOrDefault("NATS_CENTER_URL", ""),
 			LeafPort:           getEnvIntOrDefault("NATS_LEAF_PORT", 7422),
 			ClusterPort:        getEnvIntOrDefault("NATS_CLUSTER_PORT", 6222),
-			StartTimeout:       getEnvOrDefault("NATS_START_TIMEOUT", "15s"),
+			StartTimeout:       getEnvOrDefault("NATS_START_TIMEOUT", "30s"),
 		},
 		Cache: CacheConfig{
 			Type:        getEnvOrDefault("CACHE_TYPE", "ristretto"),

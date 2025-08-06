@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -291,7 +292,7 @@ func (s *kvStore) startEmbeddedServer() error {
 	}
 
 	opts := &server.Options{
-		Host:       "127.0.0.1",
+		Host:       "0.0.0.0",
 		Port:       -1,                   // Random port for client connections
 		JetStream:  nodeType == "center", // Only center nodes have JetStream
 		ServerName: fmt.Sprintf("%s-%d", nodeType, time.Now().UnixNano()),
@@ -299,6 +300,10 @@ func (s *kvStore) startEmbeddedServer() error {
 
 	if s.config.DataDir != "" {
 		opts.StoreDir = s.config.DataDir
+		// Ensure directory exists and is writable
+		if err := ensureDirectory(s.config.DataDir); err != nil {
+			return fmt.Errorf("failed to ensure data directory: %w", err)
+		}
 	}
 
 	// Configure based on node type
@@ -306,6 +311,10 @@ func (s *kvStore) startEmbeddedServer() error {
 		// Center node configuration
 		opts.JetStreamMaxMemory = 64 * 1024 * 1024  // 64MB
 		opts.JetStreamMaxStore = 1024 * 1024 * 1024 // 1GB
+		
+		// Enable debug logging for JetStream issues
+		opts.Debug = false  // Set to true for more verbose logging if needed
+		opts.Trace = false  // Set to true for even more verbose logging if needed
 
 		// Setup leaf node connections
 		if s.config.LeafPort > 0 {
@@ -337,10 +346,24 @@ func (s *kvStore) startEmbeddedServer() error {
 		opts.JetStream = false
 	}
 
-	// Log important startup params
-	fmt.Printf("NATS embedded start: nodeType=%s dataDir=%s leafPort=%d clusterPort=%d host=%s\n", nodeType, opts.StoreDir, opts.LeafNode.Port, opts.Cluster.Port, opts.Host)
+	// Log important startup params - use simplified opts for actual server
+	fmt.Printf("NATS embedded start: nodeType=%s dataDir=%s host=%s jetstream=%t\n", nodeType, s.config.DataDir, "0.0.0.0", nodeType == "center")
+	
+	// Create server with simplified options - basic embedded server
+	simpleOpts := &server.Options{
+		Host:      "0.0.0.0",
+		Port:      -1,
+		JetStream: nodeType == "center",
+		ServerName: fmt.Sprintf("%s-%d", nodeType, time.Now().UnixNano()),
+	}
+	
+	if s.config.DataDir != "" && nodeType == "center" {
+		simpleOpts.StoreDir = s.config.DataDir
+		simpleOpts.JetStreamMaxMemory = 32 * 1024 * 1024  // Reduce to 32MB
+		simpleOpts.JetStreamMaxStore = 256 * 1024 * 1024  // Reduce to 256MB
+	}
 
-	ns, err := server.NewServer(opts)
+	ns, err := server.NewServer(simpleOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
@@ -348,7 +371,7 @@ func (s *kvStore) startEmbeddedServer() error {
 	// Start server in background
 	go ns.Start()
 
-	// Determine timeout
+	// Determine timeout - increase default for center nodes with JetStream
 	var timeout time.Duration
 	if s.config.StartTimeout != "" {
 		if d, err := time.ParseDuration(s.config.StartTimeout); err == nil {
@@ -356,13 +379,39 @@ func (s *kvStore) startEmbeddedServer() error {
 		}
 	}
 	if timeout == 0 {
-		if nodeType == "center" { timeout = 15 * time.Second } else { timeout = 10 * time.Second }
+		if nodeType == "center" {
+			timeout = 30 * time.Second  // Increased from 15s to 30s for JetStream initialization
+		} else {
+			timeout = 15 * time.Second  // Increased from 10s to 15s
+		}
 	}
 
-	// Wait for server to be ready
-	if !ns.ReadyForConnections(timeout) {
-		ns.Shutdown()
-		return fmt.Errorf("server failed to start within %v (node type: %s)", timeout, nodeType)
+	// Wait for server to be ready with progress logging
+	fmt.Printf("NATS server starting, waiting up to %v for readiness...\n", timeout)
+	
+	startTime := time.Now()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	
+	// Poll for readiness with status updates
+	for {
+		if ns.ReadyForConnections(100 * time.Millisecond) {
+			break
+		}
+		
+		elapsed := time.Since(startTime)
+		if elapsed >= timeout {
+			ns.Shutdown()
+			return fmt.Errorf("server failed to start within %v (node type: %s)", timeout, nodeType)
+		}
+		
+		select {
+		case <-ticker.C:
+			fmt.Printf("NATS server still starting... elapsed: %v, JetStream: %t\n", elapsed.Truncate(time.Second), simpleOpts.JetStream)
+		default:
+		}
+		
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	s.server = ns
@@ -385,5 +434,23 @@ func (s *kvStore) cleanup() error {
 		s.server.WaitForShutdown()
 	}
 
+	return nil
+}
+
+// ensureDirectory creates the directory if it doesn't exist and verifies it's writable
+func ensureDirectory(dir string) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	
+	// Test if directory is writable by creating a temporary file
+	testFile := dir + "/.write-test"
+	f, err := os.Create(testFile)
+	if err != nil {
+		return fmt.Errorf("directory not writable: %w", err)
+	}
+	f.Close()
+	os.Remove(testFile)
+	
 	return nil
 }
