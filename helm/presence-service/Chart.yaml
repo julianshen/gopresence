@@ -1,0 +1,18 @@
+apiVersion: v2
+name: presence-service
+description: A Helm chart for the distributed presence service with hub-and-spoke architecture
+type: application
+version: 1.0.0
+appVersion: "v2.0.0"
+keywords:
+  - presence
+  - microservice
+  - nats
+  - ristretto
+  - distributed
+home: https://github.com/yourusername/gopresence
+sources:
+  - https://github.com/yourusername/gopresence
+maintainers:
+  - name: Your Name
+    email: your.email@example.com

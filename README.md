@@ -83,6 +83,19 @@ JWT_SECRET=your-secret-key ./presence-service
 | `CACHE_MAX_COST` | Ristretto max memory (bytes) | `1000000` | No |
 | `CACHE_NUM_COUNTERS` | TinyLFU counters | `100000` | No |
 | `LOG_LEVEL` | Logging level | `info` | No |
+| `CORS_ENABLED` | Enable CORS handling | `true` | No |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins (use `*` for dev; do not combine `*` with credentials) | `*` | No |
+| `CORS_ALLOWED_METHODS` | Allowed HTTP methods | `GET,POST,PUT,DELETE,OPTIONS` | No |
+| `CORS_ALLOWED_HEADERS` | Allowed headers | `Authorization,Content-Type` | No |
+| `CORS_ALLOW_CREDENTIALS` | Allow credentials (cookies/authorization headers) | `false` | No |
+| `CORS_MAX_AGE` | Preflight cache duration (seconds) | `600` | No |
+
+### CORS
+
+The service can respond directly to frontend clients. CORS is enabled by default and configurable via the environment variables above.
+- In development, `CORS_ALLOWED_ORIGINS=*` is acceptable if `CORS_ALLOW_CREDENTIALS=false`.
+- In production, specify explicit origins (e.g., `https://app.example.com`).
+- Preflight `OPTIONS` requests are handled and short-circuited with appropriate headers.
 
 ### Configuration Files
 

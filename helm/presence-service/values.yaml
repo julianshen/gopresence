@@ -1,0 +1,164 @@
+# Default values for presence-service
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# Image configuration
+image:
+  repository: presence-service
+  tag: "v2.0.0"
+  pullPolicy: IfNotPresent
+
+# Service configuration
+service:
+  name: presence-service
+  version: v2
+  nodeType: center  # center or leaf
+  nodeId: "center-node-1"
+
+# Networking
+networking:
+  servicePort: 8080
+  natsPort: 4222
+  natsLeafPort: 7422
+  natsClusterPort: 6222
+
+# Kubernetes service configuration
+k8sService:
+  type: ClusterIP
+  ports:
+    http:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    nats:
+      port: 4222
+      targetPort: 4222
+      protocol: TCP
+    nats-leaf:
+      port: 7422
+      targetPort: 7422
+      protocol: TCP
+    nats-cluster:
+      port: 6222
+      targetPort: 6222
+      protocol: TCP
+
+# NATS configuration
+nats:
+  embedded: true
+  dataDir: "/data/nats"
+  jetstream:
+    maxMemory: 67108864  # 64MB
+    maxStore: 1073741824  # 1GB
+  kv:
+    bucket: "presence"
+    ttl: "3600s"
+  # For leaf nodes
+  centerUrl: ""  # nats://presence-service-center:4222
+
+# Cache configuration (Ristretto)
+cache:
+  type: "ristretto"
+  maxCost: 2000000      # 2MB for center node
+  numCounters: 200000   # Higher for center node
+  bufferItems: 64
+  metrics: true
+
+# Authentication
+auth:
+  jwtSecret: ""  # Must be provided via secret
+  jwtIssuer: "presence-service"
+  jwtTTL: "24h"
+
+# Logging
+logging:
+  level: "info"
+  format: "json"
+
+# Kubernetes deployment configuration
+deployment:
+  replicaCount: 1
+  
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  # Node selection
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    runAsGroup: 65534
+    fsGroup: 65534
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+  
+  # Liveness and readiness probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Persistent storage for NATS data
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 1Gi
+  accessMode: ReadWriteOnce
+
+# Service monitor for Prometheus (if using)
+serviceMonitor:
+  enabled: false
+  labels: {}
+  interval: 30s
+  path: /metrics
+
+# Horizontal Pod Autoscaler
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+pdb:
+  enabled: false
+  minAvailable: 1
+
+# ConfigMap and Secret names
+configMap:
+  name: ""  # If empty, will use release name
+  
+secret:
+  name: ""  # If empty, will use release name
+  jwtSecret: ""  # Base64 encoded JWT secret

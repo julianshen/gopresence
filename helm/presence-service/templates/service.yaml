@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "presence-service.fullname" . }}
+  labels:
+    {{- include "presence-service.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.k8sService.type }}
+  ports:
+  - port: {{ .Values.k8sService.ports.http.port }}
+    targetPort: {{ .Values.k8sService.ports.http.targetPort }}
+    protocol: {{ .Values.k8sService.ports.http.protocol }}
+    name: http
+  {{- if eq .Values.service.nodeType "center" }}
+  - port: {{ .Values.k8sService.ports.nats.port }}
+    targetPort: {{ .Values.k8sService.ports.nats.targetPort }}
+    protocol: {{ .Values.k8sService.ports.nats.protocol }}
+    name: nats
+  - port: {{ .Values.k8sService.ports.nats-leaf.port }}
+    targetPort: {{ .Values.k8sService.ports.nats-leaf.targetPort }}
+    protocol: {{ .Values.k8sService.ports.nats-leaf.protocol }}
+    name: nats-leaf
+  - port: {{ .Values.k8sService.ports.nats-cluster.port }}
+    targetPort: {{ .Values.k8sService.ports.nats-cluster.targetPort }}
+    protocol: {{ .Values.k8sService.ports.nats-cluster.protocol }}
+    name: nats-cluster
+  {{- end }}
+  selector:
+    {{- include "presence-service.selectorLabels" . | nindent 4 }}

@@ -12,7 +12,8 @@ JWT_SECRET ?= change-this-in-production-please
 
 # Build the Go binary
 build:
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o presence-service ./cmd/presence-service
+	@mkdir -p build
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o build/presence-service ./cmd/presence-service
 
 # Run service benchmarks (in-memory KV fake)
 bench-service:

@@ -1,0 +1,75 @@
+# Values for leaf node deployment
+service:
+  nodeType: leaf
+  nodeId: "leaf-node-us-east-1"  # Update per region/zone
+
+# Leaf node connects to center
+nats:
+  embedded: true
+  centerUrl: "nats://presence-service-center:4222"  # Update to actual center service name
+  # Leaf nodes don't need JetStream configuration
+  jetstream:
+    maxMemory: 33554432   # 32MB for leaf
+    maxStore: 536870912   # 512MB for leaf
+
+# Cache configuration for leaf node (smaller cache)
+cache:
+  maxCost: 1000000      # 1MB
+  numCounters: 100000   # Lower counters for leaf node
+
+# Resource allocation for leaf node
+deployment:
+  replicaCount: 2       # Multiple replicas for load distribution
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Service configuration for leaf nodes
+k8sService:
+  type: ClusterIP       # Internal only, no external NATS access needed
+  ports:
+    # Only HTTP port needed for leaf nodes
+    http:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+# Persistence for leaf nodes (less critical, can be disabled)
+persistence:
+  enabled: false        # Leaf nodes can be stateless
+
+# HPA for leaf nodes (more aggressive scaling)
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+# Pod disruption budget for leaf nodes
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# Affinity to spread leaf nodes across different nodes
+deployment:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - presence-service
+            - key: app.kubernetes.io/component
+              operator: In
+              values:
+              - leaf
+          topologyKey: kubernetes.io/hostname

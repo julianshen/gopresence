@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-presence-service
+# presence-service
 
 # Test binary, built with `go test -c`
 *.test
