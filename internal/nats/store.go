@@ -43,14 +43,15 @@ type WatchEvent struct {
 
 // KVConfig holds configuration for the KV store
 type KVConfig struct {
-	ServerURL   string
-	BucketName  string
-	Embedded    bool
-	DataDir     string
-	NodeType    string // "center" or "leaf"
-	CenterURL   string // URL of center node (for leaf nodes)
-	LeafPort    int    // Port for leaf connections (for center nodes)
-	ClusterPort int    // Port for cluster connections (for center nodes)
+	ServerURL    string
+	BucketName   string
+	Embedded     bool
+	DataDir      string
+	NodeType     string // "center" or "leaf"
+	CenterURL    string // URL of center node (for leaf nodes)
+	LeafPort     int    // Port for leaf connections (for center nodes)
+	ClusterPort  int    // Port for cluster connections (for center nodes)
+	StartTimeout string // Startup wait duration, e.g., "30s"
 }
 
 // kvStore implements KVStore using NATS KV
@@ -336,30 +337,39 @@ func (s *kvStore) startEmbeddedServer() error {
 		opts.JetStream = false
 	}
 
-	server, err := server.NewServer(opts)
+	// Log important startup params
+	fmt.Printf("NATS embedded start: nodeType=%s dataDir=%s leafPort=%d clusterPort=%d host=%s\n", nodeType, opts.StoreDir, opts.LeafNode.Port, opts.Cluster.Port, opts.Host)
+
+	ns, err := server.NewServer(opts)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
 
 	// Start server in background
-	go server.Start()
+	go ns.Start()
 
-	// Wait for server to be ready
-	timeout := 10 * time.Second
-	if nodeType == "center" {
-		// Center nodes with JetStream need more time
-		timeout = 15 * time.Second
+	// Determine timeout
+	var timeout time.Duration
+	if s.config.StartTimeout != "" {
+		if d, err := time.ParseDuration(s.config.StartTimeout); err == nil {
+			timeout = d
+		}
+	}
+	if timeout == 0 {
+		if nodeType == "center" { timeout = 15 * time.Second } else { timeout = 10 * time.Second }
 	}
 
-	if !server.ReadyForConnections(timeout) {
-		server.Shutdown()
+	// Wait for server to be ready
+	if !ns.ReadyForConnections(timeout) {
+		ns.Shutdown()
 		return fmt.Errorf("server failed to start within %v (node type: %s)", timeout, nodeType)
 	}
 
-	s.server = server
+	s.server = ns
 
 	// Update config with server URL
-	s.config.ServerURL = server.ClientURL()
+	s.config.ServerURL = ns.ClientURL()
+	fmt.Printf("NATS embedded started: url=%s\n", s.config.ServerURL)
 
 	return nil
 }

@@ -171,14 +171,15 @@ func (b *ServiceBuilder) Build() (*PresenceService, error) {
 
 	// Create NATS KV store
 	natsConfig := nats.KVConfig{
-		ServerURL:   b.config.NATS.ServerURL,
-		BucketName:  b.config.NATS.KVBucket,
-		Embedded:    b.config.NATS.Embedded,
-		DataDir:     b.config.NATS.DataDir,
-		NodeType:    b.config.Service.NodeType,
-		CenterURL:   b.config.NATS.CenterURL,
-		LeafPort:    b.config.NATS.LeafPort,
-		ClusterPort: b.config.NATS.ClusterPort,
+		ServerURL:    b.config.NATS.ServerURL,
+		BucketName:   b.config.NATS.KVBucket,
+		Embedded:     b.config.NATS.Embedded,
+		DataDir:      b.config.NATS.DataDir,
+		NodeType:     b.config.Service.NodeType,
+		CenterURL:    b.config.NATS.CenterURL,
+		LeafPort:     b.config.NATS.LeafPort,
+		ClusterPort:  b.config.NATS.ClusterPort,
+		StartTimeout: b.config.NATS.StartTimeout,
 	}
 
 	store, err := nats.NewKVStore(natsConfig)

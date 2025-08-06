@@ -37,6 +37,7 @@ type NATSConfig struct {
 	CenterURL          string `yaml:"center_url"`   // URL of center node (for leaf nodes)
 	LeafPort           int    `yaml:"leaf_port"`    // Port for leaf connections (for center nodes)
 	ClusterPort        int    `yaml:"cluster_port"` // Port for cluster connections
+	StartTimeout       string `yaml:"start_timeout"` // Startup wait duration (e.g., 30s)
 }
 
 // CacheConfig holds cache configuration
@@ -84,6 +85,7 @@ func Load() (*Config, error) {
 			CenterURL:          getEnvOrDefault("NATS_CENTER_URL", ""),
 			LeafPort:           getEnvIntOrDefault("NATS_LEAF_PORT", 7422),
 			ClusterPort:        getEnvIntOrDefault("NATS_CLUSTER_PORT", 6222),
+			StartTimeout:       getEnvOrDefault("NATS_START_TIMEOUT", "15s"),
 		},
 		Cache: CacheConfig{
 			Type:        getEnvOrDefault("CACHE_TYPE", "ristretto"),

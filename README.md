@@ -259,28 +259,21 @@ make helm-uninstall
 
 ## 📊 Monitoring
 
-### Cache Metrics
+### Prometheus Metrics
 
-The service exposes Ristretto cache metrics:
+The service exposes Prometheus metrics at `/metrics`.
+Key series:
+- `http_requests_total{method,route,status}`
+- `http_requests_inflight`
+- `http_request_duration_seconds{method,route}`
+- `cache_items` (approximate number of cached items)
 
-```bash
-# Get cache statistics (requires authentication)
-curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v2/cache/metrics
-```
+Example queries:
+- RPS: `sum(rate(http_requests_total[1m]))`
+- P95 latency: `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))`
+- Cache items: `cache_items`
 
-**Response:**
-```json
-{
-  "hits": 15420,
-  "misses": 1250,
-  "keys_added": 8500,
-  "keys_evicted": 150,
-  "cost_added": 2450000,
-  "cost_evicted": 45000
-}
-```
-
-### Prometheus Integration
+### ServiceMonitor
 
 Enable ServiceMonitor for Prometheus scraping:
 
@@ -291,6 +284,7 @@ serviceMonitor:
   labels:
     prometheus: kube-prometheus
   interval: 30s
+  path: /metrics
 ```
 
 ## 🧪 Testing

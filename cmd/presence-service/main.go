@@ -10,6 +10,7 @@ import (
 	"gopresence/internal/auth"
 	"gopresence/internal/config"
 	"gopresence/internal/handlers"
+	"gopresence/internal/metrics"
 	"gopresence/internal/service"
 )
 
@@ -25,17 +26,30 @@ func main(){
 
 	// Router
 	r := mux.NewRouter()
+	// Metrics endpoint
+	r.Handle("/metrics", metrics.Handler())
+
 	// Health routes
 	hh := handlers.NewHealthHandler(svc)
 	r.HandleFunc("/health/liveness", hh.Liveness).Methods(http.MethodGet)
 	r.HandleFunc("/health/readiness", hh.Readiness).Methods(http.MethodGet)
 
-	// API routes
+	// API routes (instrumented)
 	ph := handlers.NewPresenceHandler(svc)
-	r.HandleFunc("/api/v2/presence/{user_id}", ph.GetPresence).Methods(http.MethodGet, http.MethodOptions)
-	r.HandleFunc("/api/v2/presence/{user_id}", ph.SetPresence).Methods(http.MethodPut, http.MethodOptions)
-	r.HandleFunc("/api/v2/presence", ph.GetMultiplePresences).Methods(http.MethodGet, http.MethodOptions)
-	r.HandleFunc("/api/v2/presence/batch", ph.BatchPresence).Methods(http.MethodPost, http.MethodOptions)
+	r.Handle("/api/v2/presence/{user_id}", metrics.Middleware("presence.user", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+		switch r.Method {
+		case http.MethodGet:
+			ph.GetPresence(w, r)
+		case http.MethodPut:
+			ph.SetPresence(w, r)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}), svc.Cache())).Methods(http.MethodGet, http.MethodPut, http.MethodOptions)
+	r.Handle("/api/v2/presence", metrics.Middleware("presence.multi", http.HandlerFunc(ph.GetMultiplePresences), svc.Cache())).Methods(http.MethodGet, http.MethodOptions)
+	r.Handle("/api/v2/presence/batch", metrics.Middleware("presence.batch", http.HandlerFunc(ph.BatchPresence), svc.Cache())).Methods(http.MethodPost, http.MethodOptions)
 
 	// Middlewares: CORS -> Auth (example uses optional auth for demonstration)
 	var handler http.Handler = r
